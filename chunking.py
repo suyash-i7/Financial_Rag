@@ -16,11 +16,11 @@ for pdf_file in DATA_DIR.glob("*.pdf"):
 
     reader = PdfReader(pdf_file)
 
-    for page_number, page in enumerate(reader.pages, start=1):
+    for page_number, page in enumerate(reader.pages, start=1):   #  start=1 as by default in py start=0;
 
         text = page.extract_text() or ""
 
-        if not text.strip():
+        if not text.strip():   #if not "" ->> true so it will continue if not text is extracted
             continue
 
         documents.append(
