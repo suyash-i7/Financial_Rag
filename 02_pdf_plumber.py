@@ -2,7 +2,7 @@ from pathlib import Path
 import pdfplumber
 
 
-pdf_file = Path("data/september_2025_20251013032958_1768817579.pdf")
+pdf_file = Path("data/24042026_Media_Release_RIL_Q4_FY2025-26_Financial_and_Operational_Performance.pdf")
 
 
 with pdfplumber.open(pdf_file) as pdf:
