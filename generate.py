@@ -2,7 +2,9 @@
 import requests
 import chromadb
 from query_parser import parse_query
+import sys
 
+sys.stdout.reconfigure(encoding="utf-8")
 
 # ==================================================
 # CONFIGURATION
@@ -96,6 +98,52 @@ else:
 documents = results["documents"][0]
 metadatas = results["metadatas"][0]
 
+# ==================================================
+# ENTITY-BASED RE-RANKING
+# ==================================================
+
+entity = query_info["entity"]
+
+if entity == "Jio Platforms":
+
+    ranked = []
+
+    for document, metadata in zip(documents, metadatas):
+
+        text_lower = document.lower()
+
+        if (
+            "jio platforms limited" in text_lower
+            or "consolidated jio platforms" in text_lower
+            or '"jpl"' in text_lower
+        ):
+            score = 2
+
+        elif "jiostar" in text_lower:
+            score = -2
+
+        else:
+            score = 0
+
+        ranked.append(
+            (score, document, metadata)
+        )
+
+    ranked.sort(
+        key=lambda x: x[0],
+        reverse=True
+    )
+
+    documents = [
+        item[1]
+        for item in ranked
+    ]
+
+    metadatas = [
+        item[2]
+        for item in ranked
+    ]
+
 
 # ==================================================
 # BUILD CONTEXT
@@ -132,26 +180,37 @@ You are a financial research assistant.
 
 Answer the user's question ONLY using the supplied context.
 
-The user may ask:
-- financial metric questions
-- comparison questions
-- general business questions
-- questions without a specified quarter
+STRICT ENTITY RULES:
 
-IMPORTANT:
-Do not assume that every question has a quarter or financial metric.
+1. The entity requested in the question must match the entity
+   described in the source.
 
-When answering:
-1. Identify the entity relevant to the question.
-2. Use the requested quarter or quarters when specified.
-3. Use the requested financial metric when specified.
-4. Do not confuse different businesses or segments.
-5. Do not confuse quarterly figures with annual figures.
-6. Do not use outside knowledge.
-7. Do not guess or invent information.
-8. If the requested information is not available in the supplied context, clearly say so.
-9. Be concise and factual.
-10. Do not expose your reasoning or analysis process.
+2. Do NOT confuse Jio Platforms / JPL with JioStar.
+
+3. Jio Platforms Limited ("JPL") is different from the
+   JioStar business segment.
+
+4. If the question asks for Jio Platforms, prefer sources
+   explicitly describing:
+   - Jio Platforms Limited
+   - Consolidated Jio Platforms Limited
+   - JPL
+
+5. If a source describes JioStar, do NOT use its financial
+   figures as Jio Platforms figures.
+
+6. Do not confuse quarterly figures with annual figures.
+
+7. Do not use outside knowledge.
+
+8. Do not guess or invent information.
+
+9. If the requested information is not available in a matching
+   source, clearly say that it is not available.
+
+10. Give a concise final answer.
+
+Do not expose your reasoning process.
 """
 
 # ==================================================
@@ -163,25 +222,30 @@ QUESTION:
 
 {question}
 
-
 CONTEXT:
 
 {context}
 
-
 TASK:
 
-Find the information that answers the question.
+Answer the question using only the supplied context.
 
-Before answering, identify:
-1. The entity/business requested.
-2. The requested quarter/year.
-3. The financial metric requested.
+The requested entity is:
+{query_info['entity']}
 
-Use only a source that matches those requirements.
+The requested quarter(s) are:
+{query_info['quarters']}
 
-If none of the supplied sources matches the requested
-entity and period, say that the information is not available.
+The requested metric is:
+{query_info['metric']}
+
+The requested entity and metric must match the source.
+
+If multiple businesses appear in the context, use only the
+business that matches the requested entity.
+
+Return only the final answer with the relevant figure and
+brief supporting detail.
 """
 
 
